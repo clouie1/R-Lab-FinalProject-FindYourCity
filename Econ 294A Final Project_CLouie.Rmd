@@ -1,0 +1,158 @@
+---
+title: "Econ 294A Final Project"
+author: "Christina Louie"
+date: "March 23, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Sypnosis
+
+FindYourCity, where we find your forever city! This is the moto of our business. Our focus of our small business is to help clients find their forever city or determine if the city that they chose is actually a right fit for them through the use of data analysis. If the city they have chosen is not the right fit, we are determine to find their perfect location.  We guarantee clients one hundred percent satisfaction with our services. 
+
+Cincinnati, Ohio is one of the most popular city in the United States. It is a city of high-quality living and a place filled with culture, history, amazing night life, and a diverse selection of cuisines. Very recent, one of the most popular newspaper, The Cincinnati Daily, reported that it is one of the happiest city and a place to find jobs, both permanent and small jobs. 
+
+Recently, a client who is a freelancer and specializes in law and crime has ask our firm to determine if Cincinnati, Ohio is the perfect place for her to live. Her determining factor of living in Cincinnati is the salary offering of law and police (criminal justice) jobs in Cincinnati. She requires that those jobs, on average, have a salary offering of at least $23.00. Given this business project, we begin by collecting salary data of jobs in Cincinnati.
+
+This business research project involves exploring the [City of Cincinnati Salary Schedule](https://data.cincinnati-oh.gov/Innovative-Government/City-of-Cincinnati-Salary-Schedule/yaws-h72m/data) data regarding the salary offer for wide range of jobs in Cincinnati. It provides salary ranges both in annual and per hour term for a selection of jobs. Consequently, this research seeks to identify the average salary over all jobs as well as within groups. 
+
+Through our research, we find that the client should move to Cincinnati since average earning in hourly rate is higher than client's expectation. Our firm also finds that salary both in annual and hourly term is relatively high in Cincinnati. This makes Cincinnati a good consideration for those who want to have higher minimum wage.  
+
+## Packages Required
+
+To produce the code and results throughout this project we will need to load the following packages. Assuming that some of the packages we used are not in your computer, we recommend that you install the packages before running the markdown file.
+
+```{r, message=FALSE,warning=FALSE}
+library(tidyr)         # creating tidy data
+library(dplyr)         # transforming (joining, summarizing, etc.) data
+library(ggplot2)       # visualizing data
+library(foreign)       # to call dataset
+library(DT)            # make interactive table
+```
+
+## Data Preparation
+
+### Loading Data
+
+The data for this business project originated from the City of Cincinnati website, where salary data is available for the public. The link to the data is the following:
+
+* <https://data.cincinnati-oh.gov/Innovative-Government/City-of-Cincinnati-Salary-Schedule/yaws-h72m/data>
+
+Steps to obtain data:
+
+1. Use the link above to go to the page displaying the salary schedule.
+2. Then click on **Export**
+3. On the right of the dataset, and Export menu will show. Under the **Download** tab, click on **CSV** and it will download the csv file.
+
+Click on the file and it will open in Excel. Once changes on made, save the file and upload the file to the firm's website. From there, we are ready to load the data. 
+```{r}
+salarydata <- read.csv("https://sump.sites.ucsc.edu/wp-content/uploads/sites/420/2017/03/City_of_Cincinnati_Salary_Schedule-1.csv")
+```
+### Cleaning and Tidying Data
+
+Once the basic data has been acquired we need to put the data into a tidy format. This includes removing unwanted punctuations, dropping the 'Status' variable from the data, and changing the effective date, salary plan, and description data from factor data type to character. Once all these changes are made, we will have a tidy dataset that is ready to be analyze. Also, prior to the loading, several changes were made on Excel. This includes renaming variable names and removing the dollar sign punctuation.
+
+```{r, message=FALSE, warning=FALSE}
+# remove unwanted punctuation
+salarydata$Description<- lapply(salarydata$Description, function(x) gsub("(.-)|[[:punct:]]"," ",x))
+
+# change SalaryPlan, Description, and EffectiveDate to character type
+salarydata$SalaryPlan <- as.character(salarydata$SalaryPlan)
+salarydata$Description <- as.character(salarydata$Description)
+salarydata$EffectiveDate <- as.character(salarydata$EffectiveDate)
+
+# drop the status variable
+salarydata <- salarydata[,-5]
+
+# create interactive table
+datatable(salarydata, caption = 'Table 1: Clean and tidy data.')
+```
+
+## Exploratory Data Analysis
+
+The primary purpose of this analysis is to assess salary schedule and determine if the averages meet the client's requirement of whether or not to move to Cincinnati. We will proceed by first assessing the averages of wages.
+
+### Summary Statistics of Salary
+```{r, message=FALSE,warning=FALSE}
+#df <- tbl_df(salarydata)
+df.sum <- salarydata %>%
+  select(MinSal.Hour,MaxSal.Hour,MinSal.Annual,MaxSal.Annual)%>%
+  summarize_each(funs(min=min,
+                      q25=quantile(.,0.25),
+                      median =median,
+                      q75=quantile(.,0.75),
+                      max = max,
+                      mean = mean))
+
+# reshape it using tidyr functions
+df.stats.tidy <- df.sum %>% gather(stat,val) %>%
+  separate(stat,into=c("var","stat"),sep = "_") %>%
+  spread(stat,val) %>%
+  select(var, min, q25, median, q75, max, mean) # reorder columns
+
+print(df.stats.tidy)
+```
+From the summary table, the average of the minimum salary per hour is the \$26.47 and the average of the maximum salary per hour is the \$33.65. The average of the minimum salary annually is \$55149.15 and the average of the maximum salary annually is \$70099.09. 
+
+Now we want to consider average earning per hour for salary plan that is LAW and POL. In this case, We want to observe if law and crime police career having high earnings relative client's salary demand.
+
+```{r, message=FALSE,warning=FALSE}
+summary(salarydata$MinSal.Hour[salarydata$SalaryPlan=="LAW"],basic=T)
+summary(salarydata$MaxSal.Hour[salarydata$SalaryPlan=="LAW"],basic=T)
+```
+```{r, message=FALSE,warning=FALSE}
+summary(salarydata$MinSal.Hour[salarydata$SalaryPlan=="POL"],basic=T)
+summary(salarydata$MaxSal.Hour[salarydata$SalaryPlan=="POL"],basic=T)
+```
+Based from the results, it seems that law and crime police careers have relatively high earnings comparing to client's salary requirement.
+
+### Plots of Annual Earnings
+We now want to observe the overall annual earning for all sorts of jobs in Cincinnati. 
+
+The following plots describe a summary statistic for different salary plan based on the sort of jobs. 
+```{r, message=FALSE,warning=FALSE}
+boxplot(salarydata$MinSal.Annual~salarydata$SalaryPlan,xlab="Salary Plan",ylab="Minimum Salary Annually",main="Boxplot of Salary for Different Salary Plan")
+boxplot(salarydata$MaxSal.Annual~salarydata$SalaryPlan,xlab="Salary Plan",ylab="Maximum Salary Annually",main="Boxplot of Salary for Different Salary Plan")
+```
+
+The plots above illustrate the the summary statistics of the Minimum and and Maximum Annual Earning. Overall, the earnings falls on average between \$50000 to \$100000. Moreover, law and criminal justice jobs have a fairly wide distribution in earnings relatively to other salary plan. 
+
+```{r,message=FALSE,warning=FALSE}
+boxplot(salarydata$MinSal.Annual[salarydata$SalaryPlan=="POL"]~salarydata$Grade[salarydata$SalaryPlan=="POL"],xlab="Salary Grade under POL Salary Plan",ylab="Minimum Salary Annually",main="Boxplot of Salary for Salary Grade under POL Salary Plan")
+boxplot(salarydata$MinSal.Annual[salarydata$SalaryPlan=="LAW"]~salarydata$Grade[salarydata$SalaryPlan=="LAW"],xlab="Salary Grade under POL Salary Plan",ylab="Minimum Salary Annually",main="Boxplot of Salary for Salary Grade under LAW Salary Plan")
+
+```
+
+The plots above illustrate the minimum and maximum annual salary based on salary grade within the POL and LAW salary plan, respectively. Note that within the POL salary plan, minimum annual salary is higher as salary grade is larger. This makes sense because as one have more experience and receive a higher salary grade during job offers, salary is also higher or possibly more benefits. However, within the LAW salary plan, we observe no correlation between salary grade and minimum annual salary. This could possibly be due to different sorts of jobs offer with the law sectors, so earnings may vary differently.
+
+```{r,message=FALSE,warning=FALSE}
+hist(salarydata$MinSal.Annual, main = "Histogram of Minimum Annual Earning", xlab="Minimum Annual Earning")
+hist(salarydata$MaxSal.Annual, main = "Histogram of Maximum Annual Earning", xlab="Maximum Annual Earning")
+```
+The histograms above illustrate the density of both minimum and maximum annual earning. We observe that, on average, the annual earning is about $50000.  
+
+```{r,message=FALSE,warning=FALSE}
+gg.static<-ggplot(data=salarydata,mapping=aes(x=SalaryPlan))+ggtitle("Salary Plan")+labs("")
+gg.static+geom_histogram(color="black",fill="white",breaks=seq(0,400,25),closed="right",stat="count")
+```
+
+The histogram above illustrates the density of job selections within different salary plan. Based from the histogram, most job selections could be found in DOC, D1, and D8. On the hand, LAW and POL have  very fewer job selections.
+
+```{r,message=FALSE,warning=FALSE}
+gg.static<-ggplot(data=salarydata,mapping=aes(x=MinSal.Hour))+ggtitle("Histogram of Minimum Salary Per Hour")+labs("")
+gg.static+geom_histogram(color="black",fill="white",breaks=seq(0,400,25),closed="right",stat="count")
+
+gg.static<-ggplot(data=salarydata,mapping=aes(x=MaxSal.Hour))+ggtitle("Histogram of Maximum Salary Per Hour")+labs("")
+gg.static+geom_histogram(color="black",fill="white",breaks=seq(0,400,25),closed="right",stat="count")
+```
+
+The histograms above illustrate the density of both minimum and maximum salary in hourly term. We observe that, on average, salary per hour is about \$32.00. This salary exceeds the requirement of the client. 
+
+## Summary
+
+Consequently, our results shows that our client should move to Cincinnati. The average earnings both in term of hour and annual rate are higher than our client's requirement.
+
+Furthermore, our results also shows that Cincinnati is a city with relatively high earning jobs. Earnings, on average, is around $50000. So, if our clients are looking for places that have relatively high earning jobs, Cincinnati is the place to be. 
